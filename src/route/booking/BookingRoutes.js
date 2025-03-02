@@ -17,12 +17,7 @@
 // router.get("/",bookingController.findAll);
 // router.post("/",bookingController.save);
 
-
-
-
 // export  {router as BookingRouter };
-
-
 
 // // routes/BookingRoute.js
 // const express = require('express');
@@ -36,10 +31,15 @@
 // router.post("/create_booking", save);
 
 // module.exports = router;
+import validateBooking from "../../validation/bookingValidation.js";
 
-
-import express from 'express';
-import { findAll, save } from '../../controller/booking/BookingController.js';
+import express from "express";
+import {
+  findAll,
+  save,
+  updateStatus,
+  deleteBooking,
+} from "../../controller/booking/BookingController.js";
 
 const router = express.Router();
 
@@ -49,4 +49,8 @@ router.get("/view", findAll);
 // Create a new booking
 router.post("/create", save);
 
+// Create a new booking
+router.post("/create", validateBooking, save);
+router.put("/update/:id", updateStatus);
+router.delete("/delete/:id", deleteBooking);
 export { router as BookingRouter };

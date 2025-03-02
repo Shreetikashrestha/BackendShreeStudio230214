@@ -1,72 +1,127 @@
 // src/controller/booking/BookingController.js
-import { BookingModel as Booking } from '../../models/booking/BookingModel.js';
-import { ServicesModel, User } from '../../models/index.js';
+import { BookingModel as Booking } from "../../models/booking/BookingModel.js";
+import { ServicesModel, User } from "../../models/index.js";
 
 // Get all bookings with related User and Service data
 export const findAll = async (req, res) => {
-    try {
-        const bookings = await Booking.findAll({
-            include: [
-                {
-                    model: User,
-                    attributes: ["id", "name", "email"] // Include user details
-                },
-                {
-                    model: ServicesModel,
-                    attributes: ["id", "Servicename", "Price"] // Include service details
-                }
-            ]
-        });
+  try {
+    const bookings = await Booking.findAll({
+      include: [
+        {
+          model: User,
+          attributes: ["id", "name", "email"], // Include user details
+        },
+        {
+          model: ServicesModel,
+          attributes: ["id", "Servicename", "Price"], // Include service details
+        },
+      ],
+    });
 
-        res.status(200).json(bookings);
-    } catch (error) {
-        console.error("Error retrieving bookings:", error);
-        res.status(500).json({ message: "Failed to retrieve bookings", error: error.message });
-    }
+    res.status(200).json(bookings);
+  } catch (error) {
+    console.error("Error retrieving bookings:", error);
+    res
+      .status(500)
+      .json({ message: "Failed to retrieve bookings", error: error.message });
+  }
 };
 
 // Save a new booking with User and Service relationship
 export const save = async (req, res) => {
-    const { Date, Day, Time, Status, serviceId, userId } = req.body;
+  const { Date, Day, Time, Status, serviceId, userId } = req.body;
 
-    // Validate required fields
-    if (!Date || !Day || !Time || !Status || !serviceId || !userId) {
-        return res.status(400).json({ message: "All fields, including serviceId and userId, are required" });
+  // Validate required fields
+  if (!Date || !Day || !Time || !Status || !serviceId || !userId) {
+    return res.status(400).json({
+      message: "All fields, including serviceId and userId, are required",
+    });
+  }
+
+  try {
+    // Check if service and user exist
+    const serviceExists = await ServicesModel.findByPk(serviceId);
+    const userExists = await User.findByPk(userId);
+    console.log(serviceExists, userExists);
+    if (!serviceExists) {
+      return res.status(404).json({ message: "Service not found" });
+    }
+    if (!userExists) {
+      return res.status(404).json({ message: "User not found" });
     }
 
-    try {
-        // Check if service and user exist
-        const serviceExists = await ServicesModel.findByPk(serviceId);
-        const userExists = await User.findByPk(userId);
-        console.log(serviceExists,userExists)
-        if (!serviceExists) {
-            return res.status(404).json({ message: "Service not found" });
-        }
-        if (!userExists) {
-            return res.status(404).json({ message: "User not found" });
-        }
+    // Create booking
+    const newBooking = await Booking.create({
+      Date,
+      Day,
+      Time,
+      Status,
+      serviceId,
+      userId,
+    });
 
-        // Create booking
-        const newBooking = await Booking.create({
-            Date,
-            Day,
-            Time,
-            Status,
-            serviceId,
-            userId
-        });
+    // Fetch created booking with user and service details
+    const bookingWithDetails = await Booking.findByPk(newBooking.id, {
+      include: [
+        { model: User, attributes: ["id", "name", "email"] },
+        { model: ServicesModel, attributes: ["id", "Servicename", "Price"] },
+      ],
+    });
 
-        // Fetch created booking with user and service details
-        const bookingWithDetails = await Booking.findByPk(newBooking.id, {
-            include: [
-                { model: User, attributes: ["id", "name", "email"] },
-                { model: ServicesModel, attributes: ["id", "Servicename", "Price"] }
-            ]
-        });
+    res.status(201).json(bookingWithDetails);
+  } catch (error) {
+    console.error("Error saving booking:", error);
+    res
+      .status(500)
+      .json({ message: "Failed to save booking", error: error.message });
+  }
+};
+export const updateStatus = async (req, res) => {
+  const { id } = req.params;
+  const { Status } = req.body;
 
-        res.status(201).json(bookingWithDetails);
-    } catch (error) {
-        console.error("Error saving booking:", error);
-        res.status(500).json({ message: "Failed to save booking", error: error.message });
+  if (!Status) {
+    return res.status(400).json({ message: "Status is required" });
+  }
+
+  try {
+    console.log(id);
+    const booking = await Booking.findByPk(id);
+    console.log(booking);
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
     }
+
+    booking.Status = Status;
+    await booking.save();
+
+    res
+      .status(200)
+      .json({ message: "Booking status updated successfully", booking });
+  } catch (error) {
+    console.error("Error updating booking status:", error);
+    res.status(500).json({
+      message: "Failed to update booking status",
+      error: error.message,
+    });
+  }
+};
+
+export const deleteBooking = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const booking = await Booking.findByPk(id);
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    await booking.destroy();
+    res.status(200).json({ message: "Booking deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting booking:", error);
+    res
+      .status(500)
+      .json({ message: "Failed to delete booking", error: error.message });
+  }
 };
